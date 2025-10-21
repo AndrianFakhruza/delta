@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Data (Admin) - DELTA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f3f4f6; 
+            /* FIX: Hapus overflow: hidden di body jika ingin membiarkan halaman penuh di-scroll (tapi untuk layout ini, kita biarkan di container utama) */
+            overflow: hidden; 
+        }
+        .navbar-gradient { background: linear-gradient(135deg, #065f46 0%, #10b981 100%); }
+        .sidebar-link.active { background-color: #065f46; color: #fff; box-shadow: 0 4px 6px rgba(6, 95, 70, 0.4); }
+        .sidebar-container { width: 256px; transition: width 0.3s ease; flex-shrink: 0; } /* FIX: Tambah flex-shrink */
+        .sidebar-container.collapsed { width: 80px; }
+        .sidebar-container.collapsed .sidebar-text { display: none; }
+        /* FIX: Perbaiki rotasi ikon */
+        .sidebar-container.collapsed .toggle-button-wrapper .fa-arrow-left { transform: rotate(180deg); }
+        .toggle-button-wrapper { position: absolute; right: 0; top: 50%; transform: translateY(-50%) translateX(50%); transition: transform 0.3s ease; z-index: 10; }
+        
+        .master-data-toggle {
+            cursor: pointer;
+            padding: 1rem;
+            text-align: center;
+            border-top: 1px solid #065f46;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .btn-gradient { background-image: linear-gradient(135deg, #065f46 0%, #10b981 100%); }
+        
+        .main-content-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; position: relative; }
+        
+        /* Area Login Fix: Memastikan area login selalu memenuhi sisa ruang untuk centering */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: calc(100vh - 80px); 
+            width: 100%;
+            padding: 0 2rem;
+            box-sizing: border-box;
+        }
+
+        /* Master Data Area Style */
+        .master-data-area { 
+            flex-grow: 1; 
+            /* FIX: Tambahkan overflow-y: auto agar area konten manajemen bisa di-scroll */
+            overflow-y: auto; 
+            padding: 1rem 2rem; 
+            padding-top: 0; 
+            /* FIX: Pastikan konten tidak terpotong header */
+            height: calc(100vh - 80px); 
+        }
+
+        /* FIX: Mengembalikan Top Bar ke Posisi Default (Space Between) */
+        .top-bar-clean { 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            flex-shrink: 0;
+            padding-left: 2rem; 
+            padding-right: 2rem;
+        }
+        
+        /* BACKGROUND BURAM UNTUK LOGIN */
+        #bg-blur-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('assets/bg-login-admin.jpg');
+            background-size: cover;
+            background-position: center;
+            filter: blur(3px); 
+            z-index: 0; 
+            transition: opacity 0.5s ease-in-out;
+            opacity: 0;
+            visibility: hidden;
+            border-radius: 0; 
+        }
+        #bg-blur-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* Konten area utama (login/master) harus di atas background */
+        #main-content-area > div {
+            position: relative;
+            z-index: 10;
+        }
+        
+        /* Transisi Fade untuk Content Area */
+        .fade-in-out {
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .fade-in-out.visible {
+            opacity: 1;
+        }
+        
+        /* MODAL STYLE */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Style untuk Tombol Tab */
+        .tab-button {
+            background-color: #fff;
+            color: #4b5563; 
+            font-weight: 700;
+            padding: 0.75rem 1.5rem; 
+            border-radius: 0.75rem; 
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            transition: all 0.2s;
+            border: 1px solid #d1d5db;
+        }
+        
+        .tab-button:hover:not(.active) {
+            background-color: #f3f4f6;
+        }
+
+        .tab-button.active {
+            background-color: #10b981;
+            color: white; 
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.5), 0 2px 4px -1px rgba(16, 185, 129, 0.06);
+        }
+        
+        .tab-button.active:hover {
+            background-color: #065f46; 
+            color: white; 
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="flex h-screen bg-gray-50">
+        
+        <aside id="sidebar" class="sidebar-container navbar-gradient text-white flex flex-col relative h-full">
+            <div class="toggle-button-wrapper">
+                <button onclick="toggleSidebar(event)" class="w-8 h-8 flex items-center justify-center p-2 rounded-full navbar-gradient text-white shadow-xl hover:shadow-2xl transition-all duration-300">
+                    <i id="toggle-icon" class="fas fa-arrow-left text-sm transition-transform duration-300"></i>
+                </button>
+            </div>
+            <div class="flex items-center space-x-3 p-4 border-b border-green-700/50">
+                <div class="flex-shrink-0">
+                    <div class="bg-white p-2 rounded-lg border border-gray-200">
+                        <i class="fas fa-database w-5 h-5 text-green-600"></i>
+                    </div>
+                </div>
+                <div class="flex flex-col sidebar-text flex-grow">
+                    <span class="font-extrabold text-lg tracking-wider leading-tight text-white">DEL<span class="text-yellow-300">TA</span></span>
+                    <span class="font-medium text-xs text-green-300 leading-tight">Puskesmas Kuta Makmur</span>
+                </div>
+            </div>
+            <nav class="flex-grow p-4 space-y-2">
+                <a href="index.html" class="sidebar-link flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-green-700">
+                    <i class="fas fa-tachometer-alt w-5 h-5 mr-3"></i><span class="sidebar-text">Dashboard Utama</span>
+                </a>
+                <a href="input_data.html" class="sidebar-link flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-green-700">
+                    <i class="fas fa-pencil-alt w-5 h-5 mr-3"></i><span class="sidebar-text">Laporan Bulanan</span>
+                </a>
+                <a href="visualisasi_data.html" class="sidebar-link flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-green-700">
+                    <i class="fas fa-chart-bar w-5 h-5 mr-3"></i><span class="sidebar-text">Visualisasi Data</span>
+                </a>
+            </nav>
+
+            <a href="admin_master.html" class="master-data-toggle active flex items-center justify-center p-3 transition-colors duration-200 hover:bg-green-700">
+                <i class="fas fa-cogs w-5 h-5 mr-3"></i><span class="sidebar-text">Master Data (Admin)</span>
+            </a>
+            
+        </aside>
+
+        <div class="main-content-wrapper">
+            
+            <div id="bg-blur-overlay"></div>
+            
+            <header class="top-bar-clean">
+                <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-cogs text-green-500 mr-3"></i> <span id="main-title">Akses Admin</span>
+                </h1>
+                <button id="logout-button" onclick="openLogoutModal()" class="hidden bg-red-500 text-white font-medium p-2 rounded-lg text-sm hover:bg-red-600 transition-colors" title="Logout">
+                    <i class="fas fa-sign-out-alt w-5 h-5"></i>
+                </button>
+            </header>
+
+            <main id="main-content-area" style="position: relative; flex-grow: 1;"> 
+                
+                <div id="login-form-area" class="login-container fade-in-out visible">
+                    <div class="w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl border border-gray-100">
+                        <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Login Admin</h2>
+                        <div id="login-message" class="text-sm font-medium text-center text-red-500 mb-4 hidden"></div> 
+                        <form id="admin-login-form" onsubmit="handleLogin(event)">
+                            <div class="mb-4">
+                                <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                                <input type="text" id="username" name="username" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
+                            </div>
+                            <div class="mb-6">
+                                <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                                <input type="password" id="password" name="password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
+                            </div>
+                            <button type="submit" class="w-full btn-gradient text-white py-2 rounded-lg font-semibold hover:opacity-90 transition-opacity">
+                                <i class="fas fa-sign-in-alt mr-2"></i> Masuk
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="master-management-area" class="master-data-area hidden fade-in-out space-y-8">
+                    
+                    <div class="flex space-x-4">
+                        <button id="btn-desa" onclick="showMasterTab('desa')" class="tab-button font-bold py-3 px-6 transition-all duration-200">
+                            <i class="fas fa-map-marker-alt mr-2"></i> Data Desa
+                        </button>
+                        <button id="btn-pemeriksaan" onclick="showMasterTab('pemeriksaan')" class="tab-button font-bold py-3 px-6 transition-all duration-200">
+                            <i class="fas fa-vial mr-2"></i> Data Pemeriksaan
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2" id="add-form-title">Tambah Data Desa Baru</h3>
+                        <form id="add-master-form" onsubmit="addMasterData(event)">
+                            <input type="hidden" id="active_master_type" value="desa"> <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                
+                                <div class="md:col-span-2">
+                                    <label for="master_name" class="block text-sm font-medium text-gray-700" id="name-label">Nama Desa</label>
+                                    <input type="text" id="master_name" placeholder="Masukkan nama desa..." required class="mt-1 block w-full p-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                </div>
+                                
+                                <div class="md:col-span-1">
+                                    <button type="submit" class="w-full btn-gradient text-white py-2 rounded-lg font-semibold">
+                                        <i class="fas fa-plus mr-2"></i> Tambah
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                        <div id="add-master-message" class="mt-3 text-sm font-medium"></div>
+                    </div>
+
+                    <div id="tab-desa" class="tab-content bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Daftar Data Desa</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/12">No.</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8/12">Nama Desa</th>
+                                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-3/12">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200" id="master_desa_body">
+                                    <tr><td colspan="3" class="px-4 py-3 text-center text-gray-500">Memuat data desa...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div id="tab-pemeriksaan" class="tab-content hidden bg-white p-6 rounded-2xl shadow-xl border border-gray-100 mb-8">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Daftar Data Pemeriksaan</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/12">No.</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8/12">Nama Pemeriksaan</th>
+                                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-3/12">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200" id="master_pemeriksaan_body">
+                                    <tr><td colspan="3" class="px-4 py-3 text-center text-gray-500">Memuat data pemeriksaan...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+
+            </main>
+        </div>
+
+    </div>
+
+    <div id="edit-modal" class="modal-overlay" onclick="if(event.target.id === 'edit-modal') closeModal('edit-modal')">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md">
+            <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2" id="modal-title">Edit Data Master</h3>
+            <form id="modal-edit-form">
+                <input type="hidden" id="modal-id">
+                <input type="hidden" id="modal-type">
+                
+                <div class="mb-4">
+                    <label for="modal-name" class="block text-sm font-medium text-gray-700" id="modal-name-label">Nama:</label>
+                    <input type="text" id="modal-name" required class="mt-1 block w-full p-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeModal('edit-modal')" class="bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">
+                        Batal
+                    </button>
+                    <button type="submit" class="btn-gradient text-white py-2 px-4 rounded-lg font-semibold">
+                        <i class="fas fa-save mr-2"></i> Simpan
+                    </button>
+                </div>
+                <div id="modal-message" class="mt-3 text-sm font-medium text-center hidden"></div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="delete-confirm-modal" class="modal-overlay" onclick="if(event.target.id === 'delete-confirm-modal') closeModal('delete-confirm-modal')">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md text-center">
+            <i class="fas fa-exclamation-triangle text-5xl text-red-500 mb-4"></i>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Konfirmasi Penghapusan</h3>
+            <p class="text-gray-600 mb-6" id="delete-message">Apakah Anda yakin ingin menghapus data ini? Aksi ini tidak dapat dibatalkan.</p>
+            <div class="flex justify-center space-x-3">
+                <button type="button" onclick="closeModal('delete-confirm-modal')" class="bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">
+                    Batal
+                </button>
+                <button type="button" id="delete-confirm-button" onclick="confirmDeleteAction()" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">
+                    Ya, Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="logout-confirm-modal" class="modal-overlay" onclick="if(event.target.id === 'logout-confirm-modal') closeModal('logout-confirm-modal')">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md text-center">
+            <i class="fas fa-sign-out-alt text-5xl text-red-500 mb-4"></i>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Konfirmasi Logout</h3>
+            <p class="text-gray-600 mb-6">Anda yakin ingin keluar dari halaman Master Data?</p>
+            <div class="flex justify-center space-x-3">
+                <button type="button" onclick="closeModal('logout-confirm-modal')" class="bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors">
+                    Batal
+                </button>
+                <button type="button" onclick="logoutAdmin(true)" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors">
+                    Ya, Logout
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="notification-modal" class="modal-overlay" onclick="if(event.target.id === 'notification-modal') closeModal('notification-modal')">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm text-center">
+            <i id="notification-icon" class="fas text-5xl text-green-500 mb-4"></i>
+            <h3 id="notification-title" class="text-xl font-bold text-gray-800 mb-2">Pemberitahuan</h3>
+            <p id="notification-message" class="text-gray-600 mb-6"></p>
+            <button type="button" onclick="closeModal('notification-modal')" class="btn-gradient text-white font-semibold py-2 px-4 rounded-lg">
+                Tutup
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', initializeAdminPage);
+
+        // --- KONSTANTA KRITIKAL LOGIN ---
+        const ADMIN_USERNAME = "Admin"; 
+        const ADMIN_PASSWORD = "admin123";
+        const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 menit
+        let sessionTimer;
+        let pendingDelete = { id: null, type: null }; 
+
+        // =========================================================================
+        // LOGIKA SIDEBAR
+        // =========================================================================
+        function toggleSidebar(event) {
+            if (event) event.stopPropagation();
+            const sidebar = document.getElementById('sidebar');
+            // FIX: Tambahkan logika toggle
+            sidebar.classList.toggle('collapsed');
+            const icon = document.getElementById('toggle-icon');
+            icon.classList.toggle('fa-arrow-left');
+            icon.classList.toggle('fa-arrow-right');
+        }
+
+        // =========================================================================
+        // LOGIKA MODAL (Umum)
+        // =========================================================================
+
+        function openModal(modalId) {
+             document.getElementById(modalId).classList.add('open');
+             resetSessionTimer(); 
+        }
+        
+        function closeModal(modalId) {
+             document.getElementById(modalId).classList.remove('open');
+             resetSessionTimer();
+        }
+        
+        function openNotificationModal(message, isSuccess = true, isSessionTimeout = false) {
+            const modal = document.getElementById('notification-modal');
+            const icon = document.getElementById('notification-icon');
+            const title = document.getElementById('notification-title');
+            const msg = document.getElementById('notification-message');
+            const closeButton = modal.querySelector('button');
+
+            if (isSessionTimeout) {
+                icon.className = 'fas fa-hourglass-end text-5xl text-orange-500 mb-4';
+                title.textContent = 'Sesi Berakhir!';
+                closeButton.onclick = () => { closeModal('notification-modal'); showLoginForm(); }; 
+            } else if (isSuccess) {
+                icon.className = 'fas fa-check-circle text-5xl text-green-500 mb-4';
+                title.textContent = 'Berhasil!';
+                closeButton.onclick = () => { closeModal('notification-modal'); };
+            } else {
+                icon.className = 'fas fa-times-circle text-5xl text-red-500 mb-4';
+                title.textContent = 'Gagal!';
+                closeButton.onclick = () => { closeModal('notification-modal'); };
+            }
+            msg.textContent = message;
+            openModal('notification-modal');
+        }
+
+        function openLogoutModal() {
+            openModal('logout-confirm-modal');
+        }
+
+        // =========================================================================
+        // LOGIKA SESI (BATAS WAKTU)
+        // =========================================================================
+
+        function resetSessionTimer() {
+            clearTimeout(sessionTimer);
+            if (checkLoginStatus()) {
+                sessionTimer = setTimeout(checkSessionTimeout, SESSION_TIMEOUT_MS);
+                localStorage.setItem('lastActivity', Date.now());
+            }
+        }
+
+        function checkSessionTimeout() {
+            const lastActivity = parseInt(localStorage.getItem('lastActivity'));
+            const currentTime = Date.now();
+            
+            if (currentTime - lastActivity > SESSION_TIMEOUT_MS) {
+                localStorage.removeItem('isAdminLoggedIn');
+                localStorage.removeItem('lastActivity');
+                clearTimeout(sessionTimer);
+                
+                openNotificationModal('Sesi admin berakhir karena tidak aktif selama 10 menit. Silakan login kembali.', false, true);
+                
+            } else {
+                resetSessionTimer();
+            }
+        }
+
+        // Event listener untuk reset timer saat ada aktivitas di halaman
+        ['mousemove', 'mousedown', 'keypress', 'scroll', 'touchstart'].forEach(eventType => {
+            document.addEventListener(eventType, resetSessionTimer, false);
+        });
+
+
+        // =========================================================================
+        // LOGIKA TAB (DESA vs PEMERIKSAAN)
+        // =========================================================================
+
+        function showMasterTab(type) {
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+
+            document.getElementById(`tab-${type}`).classList.remove('hidden');
+            document.getElementById(`btn-${type}`).classList.add('active');
+            
+            const title = (type === 'desa') ? 'Tambah Data Desa Baru' : 'Tambah Data Pemeriksaan Baru';
+            const label = (type === 'desa') ? 'Nama Desa' : 'Nama Pemeriksaan';
+            const placeholder = (type === 'desa') ? 'Masukkan nama desa...' : 'Masukkan nama pemeriksaan...';
+            
+            document.getElementById('add-form-title').textContent = title;
+            document.getElementById('name-label').textContent = label;
+            document.getElementById('master_name').placeholder = placeholder;
+            document.getElementById('active_master_type').value = type;
+
+            document.getElementById('add-master-message').innerHTML = '';
+            document.getElementById('master_name').value = '';
+            
+            resetSessionTimer();
+        }
+
+        // =========================================================================
+        // LOGIKA LOGIN/LOGOUT DENGAN TRANSISI
+        // =========================================================================
+
+        function checkLoginStatus() {
+            const isLoggedIn = localStorage.getItem('isAdminLoggedIn') === 'true';
+            if (isLoggedIn) {
+                 const lastActivity = parseInt(localStorage.getItem('lastActivity'));
+                 if (Date.now() - lastActivity > SESSION_TIMEOUT_MS) {
+                     localStorage.removeItem('isAdminLoggedIn');
+                     return false;
+                 }
+            }
+            return isLoggedIn;
+        }
+
+        function initializeAdminPage() {
+            document.getElementById('modal-edit-form').addEventListener('submit', handleModalSubmit);
+
+            if (checkLoginStatus()) {
+                showMasterManagement();
+                fetchMasterData();
+                showMasterTab('desa'); 
+                resetSessionTimer(); 
+            } else {
+                showLoginForm();
+            }
+        }
+
+        function showLoginForm() {
+            const loginArea = document.getElementById('login-form-area');
+            const masterArea = document.getElementById('master-management-area');
+            const bgBlur = document.getElementById('bg-blur-overlay');
+            const loginMessage = document.getElementById('login-message'); // FIX: Ambil elemen pesan
+
+            document.getElementById('main-title').textContent = 'Login Admin';
+            document.getElementById('logout-button').classList.add('hidden');
+
+            // 1. Sembunyikan master (jika terlihat)
+            masterArea.classList.remove('visible'); 
+            masterArea.classList.add('hidden');
+            
+            // 2. Tampilkan Background Blur
+            bgBlur.classList.add('visible');
+            
+            // FIX: Reset pesan login, input, dan kelas
+            loginMessage.classList.add('hidden');
+            loginMessage.textContent = '';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            
+            // 3. Tampilkan login dengan fade-in
+            setTimeout(() => {
+                loginArea.classList.remove('hidden');
+                loginArea.classList.add('visible');
+            }, 10);
+            
+            // Hentikan timer sesi
+            clearTimeout(sessionTimer);
+        }
+
+        function showMasterManagement() {
+            const loginArea = document.getElementById('login-form-area');
+            const masterArea = document.getElementById('master-management-area');
+            const bgBlur = document.getElementById('bg-blur-overlay');
+            
+            // 1. Fade out login screen dan background blur
+            loginArea.classList.remove('visible');
+            bgBlur.classList.remove('visible');
+
+            // 2. Transisi tampilan
+            setTimeout(() => {
+                loginArea.classList.add('hidden');
+                
+                document.getElementById('main-title').textContent = 'Manajemen Master Data';
+                document.getElementById('logout-button').classList.remove('hidden');
+
+                // 3. Tampilkan master area dengan fade-in
+                masterArea.classList.remove('hidden');
+                setTimeout(() => {
+                    masterArea.classList.add('visible');
+                    resetSessionTimer(); 
+                }, 10);
+                
+            }, 500); 
+        }
+
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const messageElement = document.getElementById('login-message');
+            
+            messageElement.classList.add('hidden');
+            messageElement.classList.remove('text-red-500', 'text-green-600');
+            messageElement.textContent = ''; 
+
+            if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+                localStorage.setItem('isAdminLoggedIn', 'true');
+                localStorage.setItem('lastActivity', Date.now()); 
+                
+                // Pesan sukses sebelum transisi
+                messageElement.textContent = 'Login berhasil! Memuat data...';
+                messageElement.classList.add('text-green-600');
+                messageElement.classList.remove('hidden');
+                
+                // Transisi setelah 500ms
+                setTimeout(() => {
+                    showMasterManagement();
+                    fetchMasterData();
+                    showMasterTab('desa'); 
+                }, 500);
+            } else {
+                messageElement.textContent = 'Username atau Password salah.';
+                messageElement.classList.add('text-red-500');
+                messageElement.classList.remove('hidden');
+            }
+        }
+
+        function logoutAdmin(isConfirmed = false) {
+            if (isConfirmed) {
+                localStorage.removeItem('isAdminLoggedIn');
+                localStorage.removeItem('lastActivity');
+                clearTimeout(sessionTimer); 
+                closeModal('logout-confirm-modal');
+                
+                openNotificationModal('Anda telah berhasil logout.', true);
+                
+                // Tunggu notifikasi tampil lalu fade ke login
+                setTimeout(() => {
+                    closeModal('notification-modal');
+                    showLoginForm();
+                }, 1500); 
+            } else {
+                openLogoutModal();
+            }
+        }
+
+        // =========================================================================
+        // LOGIKA MASTER DATA (CRUD)
+        // =========================================================================
+
+        async function fetchMasterData() {
+            try {
+                const desaResponse = await fetch('api.php?action=get_master_data&type=desa');
+                const desaResult = await desaResponse.json();
+                renderMasterTable(desaResult.data, 'master_desa_body', 'desa');
+
+                const pemeriksaanResponse = await fetch('api.php?action=get_master_data&type=pemeriksaan');
+                const pemeriksaanResult = await pemeriksaanResponse.json();
+                renderMasterTable(pemeriksaanResult.data, 'master_pemeriksaan_body', 'pemeriksaan');
+            } catch (error) {
+                console.error("Gagal memuat data master:", error);
+                document.getElementById('master_desa_body').innerHTML = `<tr><td colspan="3" class="px-4 py-3 text-center text-red-500">Gagal koneksi API.</td></tr>`;
+                document.getElementById('master_pemeriksaan_body').innerHTML = `<tr><td colspan="3" class="px-4 py-3 text-center text-red-500">Gagal koneksi API.</td></tr>`;
+            }
+        }
+
+        function renderMasterTable(data, tableId, type) {
+            const tableBody = document.getElementById(tableId);
+            tableBody.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="3" class="px-4 py-3 text-center text-gray-500">Tidak ada data master ${type}.</td></tr>`;
+                return;
+            }
+
+            data.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors';
+                const nameDisplay = (type === 'desa') ? 'Nama Desa' : 'Nama Pemeriksaan';
+                
+                row.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 w-1/12">${index + 1}.</td>
+                    <td class="px-4 py-3 text-sm text-gray-700 w-8/12">${item.name}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-center text-sm font-medium space-x-2 w-3/12">
+                        <button onclick="openEditModal(${item.id}, '${item.name}', '${type}', '${nameDisplay}')" class="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-100 transition-colors" title="Edit Nama">
+                            <i class="fas fa-edit w-5 h-5"></i>
+                        </button>
+                        <button onclick="openDeleteModal(${item.id}, '${type}', '${item.name}')" class="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-100 transition-colors" title="Hapus Data">
+                            <i class="fas fa-trash-alt w-5 h-5"></i>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+            resetSessionTimer();
+        }
+        
+        // =========================================================================
+        // LOGIKA MODAL HAPUS (DELETE)
+        // =========================================================================
+        
+        function openDeleteModal(id, type, name) {
+            pendingDelete.id = id;
+            pendingDelete.type = type;
+            
+            const nameDisplay = (type === 'desa') ? 'Desa' : 'Pemeriksaan';
+            
+            document.getElementById('delete-message').innerHTML = 
+                `Apakah Anda yakin ingin menghapus data **${nameDisplay}: ${name}**? Aksi ini tidak dapat dibatalkan.`;
+            
+            openModal('delete-confirm-modal');
+        }
+        
+        function confirmDeleteAction() {
+            const { id, type } = pendingDelete;
+            if (id && type) {
+                 deleteMasterData(id, type);
+            }
+            pendingDelete.id = null;
+            pendingDelete.type = null;
+        }
+
+        async function deleteMasterData(id, type) {
+            closeModal('delete-confirm-modal'); 
+
+            try {
+                const response = await fetch(`api.php?action=delete_master_data&id=${id}&type=${type}`, {
+                    method: 'DELETE',
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    openNotificationModal('Data master berhasil dihapus.', true);
+                    fetchMasterData(); 
+                    showMasterTab(type); 
+                } else {
+                    openNotificationModal('Gagal menghapus data: ' + result.message, false);
+                }
+            } catch (error) {
+                openNotificationModal('Gagal koneksi ke API saat menghapus data.', false);
+                console.error('Error deleting master data:', error);
+            }
+        }
+
+        // =========================================================================
+        // LOGIKA MODAL EDIT & ADD
+        // =========================================================================
+        
+        function openEditModal(id, currentName, type, nameDisplay) {
+            document.getElementById('modal-id').value = id;
+            document.getElementById('modal-type').value = type;
+            document.getElementById('modal-name').value = currentName;
+            document.getElementById('modal-name').defaultValue = currentName; 
+            document.getElementById('modal-title').textContent = `Edit ${nameDisplay}`;
+            document.getElementById('modal-name-label').textContent = nameDisplay + ':';
+            document.getElementById('modal-message').classList.add('hidden');
+            
+            openModal('edit-modal');
+            document.getElementById('modal-name').focus();
+        }
+        
+        async function handleModalSubmit(event) {
+            event.preventDefault();
+            
+            const id = document.getElementById('modal-id').value;
+            const type = document.getElementById('modal-type').value;
+            const newName = document.getElementById('modal-name').value.trim();
+            const currentName = document.getElementById('modal-name').defaultValue; 
+            const messageElement = document.getElementById('modal-message');
+            
+            messageElement.classList.remove('text-red-500', 'text-green-600');
+            messageElement.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Memproses...`;
+            messageElement.classList.remove('hidden');
+
+            if (newName === '' || newName === currentName) {
+                messageElement.textContent = 'Nama tidak boleh kosong atau sama dengan yang lama.';
+                messageElement.classList.add('text-red-500');
+                return;
+            }
+            
+            updateMasterData(id, newName, type, messageElement);
+        }
+
+        async function updateMasterData(id, newName, type, messageElement) {
+             try {
+                const response = await fetch('api.php?action=update_master_data_name', { 
+                    method: 'PUT', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id, type: type, nama: newName })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    messageElement.textContent = 'Data berhasil diperbarui!';
+                    messageElement.classList.add('text-green-600');
+                    
+                    setTimeout(() => {
+                        closeModal('edit-modal');
+                        openNotificationModal(result.message, true);
+                        fetchMasterData(); 
+                        showMasterTab(type);
+                    }, 500);
+                } else {
+                    messageElement.textContent = 'Gagal memperbarui: ' + (result.message || 'Kesalahan server.');
+                    messageElement.classList.add('text-red-500');
+                }
+
+            } catch (error) {
+                messageElement.textContent = 'Gagal koneksi ke API.';
+                messageElement.classList.add('text-red-500');
+                console.error('Error updating master data:', error);
+            }
+        }
+
+
+        async function addMasterData(event) {
+            event.preventDefault();
+            const type = document.getElementById('active_master_type').value; 
+            const nama = document.getElementById('master_name').value.trim();
+            const messageElement = document.getElementById('add-master-message');
+            
+            messageElement.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i> Memproses...`;
+            messageElement.classList.remove('text-red-500', 'text-green-600');
+
+            if (!type || !nama) {
+                messageElement.innerHTML = 'Mohon lengkapi Nama Data.';
+                messageElement.classList.add('text-red-500');
+                return;
+            }
+
+            try {
+                const response = await fetch('api.php?action=add_master_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: type, nama: nama })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    messageElement.innerHTML = `<i class="fas fa-check-circle mr-2"></i> ${result.message}`;
+                    messageElement.classList.add('text-green-600');
+                    document.getElementById('master_name').value = ''; 
+                    
+                    setTimeout(() => {
+                         openNotificationModal(result.message, true);
+                         fetchMasterData(); 
+                         showMasterTab(type); 
+                    }, 500);
+                   
+                } else {
+                    messageElement.innerHTML = `<i class="fas fa-times-circle mr-2"></i> ${result.message}`;
+                    messageElement.classList.add('text-red-500');
+                }
+            } catch (error) {
+                openNotificationModal('Gagal koneksi ke API saat menambahkan data.', false);
+                messageElement.innerHTML = '';
+                console.error('Error adding master data:', error);
+            }
+        }
+
+    </script>
+</body>
+</html>
