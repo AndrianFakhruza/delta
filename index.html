@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Utama - DELTA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f3f4f6; 
+            overflow: hidden; 
+        }
+        .navbar-gradient { background: linear-gradient(135deg, #065f46 0%, #10b981 100%); }
+        .sidebar-link.active { background-color: #065f46; color: #fff; box-shadow: 0 4px 6px rgba(6, 95, 70, 0.4); }
+        .sidebar-container { width: 256px; transition: width 0.3s ease; flex-shrink: 0; }
+        .sidebar-container.collapsed { width: 80px; }
+        .sidebar-container.collapsed .sidebar-text { display: none; }
+        .sidebar-container.collapsed .toggle-button-wrapper .fa-arrow-left { transform: rotate(180deg); }
+        .toggle-button-wrapper { position: absolute; right: 0; top: 50%; transform: translateY(-50%) translateX(50%); transition: transform 0.3s ease; z-index: 10; }
+        
+        .master-data-toggle {
+            cursor: pointer;
+            padding: 1rem;
+            text-align: center;
+            border-top: 1px solid #065f46;
+            color: #fff;
+            font-weight: 600;
+        }
+        .master-data-toggle.active {
+            background-color: #065f46;
+            box-shadow: 0 4px 6px rgba(6, 95, 70, 0.4);
+        }
+
+        .btn-gradient { background-image: linear-gradient(135deg, #065f46 0%, #10b981 100%); }
+        
+        .main-content-wrapper { flex-grow: 1; display: flex; flex-direction: column; height: 100%; min-width: 0; position: relative; }
+        
+        /* Top Bar untuk menempatkan Title dan Filter */
+        .top-bar-clean { 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            flex-shrink: 0;
+            padding-left: 2rem; 
+            padding-right: 2rem;
+        }
+        /* Style untuk Filter di Header */
+        .header-filter-card {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem; 
+            background-color: #ffffff;
+            padding: 0.75rem 1rem; 
+            border-radius: 0.75rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            border: 1px solid #f3f4f6;
+        }
+
+        .content-area { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            padding: 0 2rem 2rem 2rem; 
+            height: calc(100vh - 80px); 
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="flex h-screen bg-gray-50">
+        
+        <aside id="sidebar" class="sidebar-container navbar-gradient text-white flex flex-col relative h-full">
+            <div class="toggle-button-wrapper">
+                <button onclick="toggleSidebar(event)" class="w-8 h-8 flex items-center justify-center p-2 rounded-full navbar-gradient text-white shadow-xl hover:shadow-2xl transition-all duration-300">
+                    <i id="toggle-icon" class="fas fa-arrow-left text-sm transition-transform duration-300"></i>
+                </button>
+            </div>
+            <div class="flex items-center space-x-3 p-4 border-b border-green-700/50">
+                <div class="flex-shrink-0">
+                    <div class="bg-white p-2 rounded-lg border border-gray-200">
+                        <i class="fas fa-database w-5 h-5 text-green-600"></i>
+                    </div>
+                </div>
+                <div class="flex flex-col sidebar-text flex-grow">
+                    <span class="font-extrabold text-lg tracking-wider leading-tight text-white">DEL<span class="text-yellow-300">TA</span></span>
+                    <span class="font-medium text-xs text-green-300 leading-tight">Puskesmas Kuta Makmur</span>
+                </div>
+            </div>
+            <nav class="flex-grow p-4 space-y-2">
+                <a href="index.html" class="sidebar-link active flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-green-700">
+                    <i class="fas fa-tachometer-alt w-5 h-5 mr-3"></i><span class="sidebar-text">Dashboard Utama</span>
+                </a>
+                <a href="input_data.html" class="sidebar-link flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-green-700">
+                    <i class="fas fa-pencil-alt w-5 h-5 mr-3"></i><span class="sidebar-text">Laporan Bulanan</span>
+                </a>
+                <a href="visualisasi_data.html" class="sidebar-link flex items-center p-3 rounded-xl transition-colors duration-200 hover:bg-green-700">
+                    <i class="fas fa-chart-bar w-5 h-5 mr-3"></i><span class="sidebar-text">Visualisasi Data</span>
+                </a>
+            </nav>
+
+            <a href="admin_master.html" class="master-data-toggle flex items-center justify-center p-3 transition-colors duration-200 hover:bg-green-700">
+                <i class="fas fa-cogs w-5 h-5 mr-3"></i><span class="sidebar-text">Master Data (Admin)</span>
+            </a>
+            
+        </aside>
+
+        <div class="main-content-wrapper">
+            
+            <header class="top-bar-clean">
+                <h1 class="text-3xl font-bold text-gray-800 flex items-center">
+                    <i class="fas fa-tachometer-alt text-green-500 mr-3"></i> Dashboard Utama
+                </h1>
+                
+                <div class="header-filter-card">
+                    <label class="text-sm font-semibold text-gray-700">Filter Riwayat:</label>
+                    <select id="filter-tahun" class="p-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="">Semua Tahun</option>
+                    </select>
+                    <select id="filter-bulan" class="p-2 border border-gray-300 rounded-lg text-sm">
+                        <option value="">Semua Bulan</option>
+                    </select>
+                </div>
+            </header>
+
+            <main class="content-area">
+                
+                <div class="bg-white p-6 rounded-xl shadow-xl border border-gray-100">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Riwayat Input Data Terbaru</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/12">Tipe Data</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/12">Periode</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-3/12">Waktu Input</th>
+                                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-5/12">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" id="riwayat-body">
+                                <tr><td colspan="4" class="px-4 py-3 text-center text-gray-500">Memuat riwayat data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', initializeDashboard);
+
+        // =========================================================================
+        // LOGIKA SIDEBAR & UTILITY
+        // =========================================================================
+        function toggleSidebar(event) {
+            if (event) event.stopPropagation();
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+            const icon = document.getElementById('toggle-icon');
+            icon.classList.toggle('fa-arrow-left');
+            icon.classList.toggle('fa-arrow-right');
+        }
+
+        function initializeDashboard() {
+            const currentYear = new Date().getFullYear();
+            const filterTahun = document.getElementById('filter-tahun');
+            const filterBulan = document.getElementById('filter-bulan');
+            
+            // 1. Mengisi dropdown filter tahun
+            filterTahun.innerHTML = '<option value="">Semua Tahun</option>'; // value="" untuk default
+            for (let y = currentYear; y >= currentYear - 2; y--) {
+                const option = document.createElement('option');
+                option.value = y;
+                option.textContent = y;
+                filterTahun.appendChild(option);
+            }
+            
+            // 2. Mengisi dropdown filter bulan
+            filterBulan.innerHTML = '<option value="">Semua Bulan</option>'; // value="" untuk default
+            const months = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            for (let i = 1; i <= 12; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = months[i];
+                filterBulan.appendChild(option);
+            }
+            
+            // 3. FIX: Menetapkan nilai default ke "Semua Bulan" dan "Semua Tahun"
+            filterBulan.value = ""; 
+            filterTahun.value = "";
+
+            // 4. Tambahkan event listener untuk filter
+            filterTahun.addEventListener('change', fetchDashboardData);
+            filterBulan.addEventListener('change', fetchDashboardData);
+
+            // 5. Muat data dengan filter default (Semua)
+            fetchDashboardData();
+        }
+
+        // =========================================================================
+        // LOGIKA FETCH DATA DASHBOARD
+        // =========================================================================
+        async function fetchDashboardData() {
+            const tahun = document.getElementById('filter-tahun').value;
+            const bulan = document.getElementById('filter-bulan').value;
+            const riwayatBody = document.getElementById('riwayat-body');
+            
+            riwayatBody.innerHTML = `<tr><td colspan="4" class="px-4 py-3 text-center text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i> Memuat data...</td></tr>`;
+
+            try {
+                // Mengirim request ke API
+                const url = `api.php?action=get_dashboard_data&tahun=${tahun}&bulan=${bulan}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    riwayatBody.innerHTML = `<tr><td colspan="4" class="px-4 py-3 text-center text-red-500">Error Koneksi Jaringan: ${response.status}</td></tr>`;
+                    return;
+                }
+                
+                const result = await response.json();
+
+                if (result.success) {
+                    renderRiwayat(result.data.latest_input);
+                } else {
+                    riwayatBody.innerHTML = `<tr><td colspan="4" class="px-4 py-3 text-center text-red-500">Gagal mengambil data: ${result.message}</td></tr>`;
+                }
+            } catch (error) {
+                riwayatBody.innerHTML = `<tr><td colspan="4" class="px-4 py-3 text-center text-red-500">Gagal koneksi ke server API.</td></tr>`;
+                console.error('Error fetching dashboard data:', error);
+            }
+        }
+
+        function renderRiwayat(data) {
+            const riwayatBody = document.getElementById('riwayat-body');
+            riwayatBody.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                riwayatBody.innerHTML = `<tr><td colspan="4" class="px-4 py-3 text-center text-gray-500">Tidak ada riwayat input ditemukan untuk periode yang dipilih.</td></tr>`;
+                return;
+            }
+
+            const months = ["", "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                const typeText = item.type === 'desa' ? 'Data Desa' : 'Data Pemeriksaan';
+                const typeColor = item.type === 'desa' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800';
+                
+                const bulanValue = item.bulan;
+                const tahunValue = item.tahun;
+                const jenisValue = item.type; 
+                
+                const editUrl = `input_data.html?tahun=${tahunValue}&bulan=${bulanValue}&jenis=${jenisValue}`;
+                const visualUrl = `visualisasi_data.html?tahun=${tahunValue}&bulan=${bulanValue}`;
+
+                row.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${typeColor}">
+                            ${typeText}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${months[parseInt(item.bulan)]} ${item.tahun}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${item.waktu_input}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-center text-sm font-medium space-x-2">
+                        <a href="${editUrl}" class="text-blue-600 hover:text-blue-800 p-2 rounded-lg hover:bg-blue-100 transition-colors" title="Edit Data Laporan">
+                            <i class="fas fa-edit mr-1"></i> Edit Data
+                        </a>
+                        <a href="${visualUrl}" class="text-green-600 hover:text-green-800 p-2 rounded-lg hover:bg-green-100 transition-colors" title="Lihat Visualisasi Data">
+                            <i class="fas fa-chart-line mr-1"></i> Lihat Visualisasi
+                        </a>
+                    </td>
+                `;
+                riwayatBody.appendChild(row);
+            });
+        }
+    </script>
+</body>
+</html>
